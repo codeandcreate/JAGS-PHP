@@ -43,9 +43,9 @@ To manipulate the return data check the ```$JAGSReturn``` array:
 
 ```
 [
-	'content' 		=> false,
+	'content' 	=> false,
 	'status_code'	=> '20',
-	'meta' 			=> 'text/gemini',
+	'meta' 		=> 'text/gemini',
 	'file_size' 	=> 0,
 ]
 ```
@@ -60,9 +60,9 @@ If you want virtual paths you could just place a PHP named for example ```dynami
 	'path'		=> '/dynamic.php',
 	'query'		=> 'param3=test&myparam1&myparam2=2',
 	'get' 		=> [
-		'param3'		=> 'test',
-		1 				=> 'myparam1',
-		'myparam2'		=> '2',
+		'param3'	=> 'test',
+		1 		=> 'myparam1',
+		'myparam2'	=> '2',
 	],
 	//...
 ]
