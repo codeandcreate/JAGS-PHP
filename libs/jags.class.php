@@ -23,7 +23,7 @@ class JetAnotherGeminiServer
 				'ip' 						=> "0",
 				'port' 						=> "1965",
 				'work_dir'					=> realpath(dirname(__FILE__) . "/.."),
-				'host_dir' 					=> "hosts/default",
+				'host_dir' 					=> "default",
 				'log_dir' 					=> "logs",
 				'default_index_file' 		=> "index.gemini",
 				'certificate_file'			=> "",
@@ -31,7 +31,8 @@ class JetAnotherGeminiServer
 				'ssl_verify_peer'			=> false,
 				'ssl_capture_peer_cert'		=> false,
 				'logging' 					=> true,
-				'log_sep' 					=> "\t"
+				'log_sep' 					=> "\t",
+				'log_delete_after'			=> "30days"
 			],
 			$config
 		);
@@ -46,8 +47,6 @@ class JetAnotherGeminiServer
 			if (!is_dir($this->config['work_dir'] . "/" . $this->config['log_dir'])) {
 				mkdir($this->config['work_dir'] . "/" . $this->config['log_dir']);
 			}
-			
-			$this->log("JAGS version " . $this->version . " started");
 		}
 	}
 	
@@ -56,7 +55,7 @@ class JetAnotherGeminiServer
 	 */
 	public function log ($ip, $status_code = "", $meta = "", $filepath = "", $filesize = ""): bool
 	{
-		$log_file = $this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . date("Y-m-d") . "_access.log";
+		$log_file = $this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . date("Y-m-d") . "_" . $this->config['host_dir'] . ".log";
 		$str = date("Y-m-d H:i:s") . $this->config['log_sep'] . (microtime(true) * 10000) . $this->config['log_sep'] . $ip . $this->config['log_sep'] . $status_code . $this->config['log_sep'] . $meta.$this->config['log_sep'] . $filepath . $this->config['log_sep'] . $filesize . "\n";
 		return file_put_contents($log_file, $str, FILE_APPEND);
 	}
@@ -108,7 +107,7 @@ class JetAnotherGeminiServer
 		}
 
 		// make it possible to get rid of .gemini extensions
-		if (is_file($this->config['work_dir'] . "/" . $this->config['host_dir'] . $JAGSRequest['path'] . ".gemini")) {
+		if (is_file($this->config['work_dir'] . "/hosts/" . $this->config['host_dir'] . $JAGSRequest['path'] . ".gemini")) {
 			$JAGSRequest['path'] .= ".gemini";
 		}
 		
@@ -122,7 +121,7 @@ class JetAnotherGeminiServer
 		 * ]
 		 */
 		$explodedPath = explode("/", $JAGSRequest['path']);
-		if (is_file($this->config['work_dir'] . "/" . $this->config['host_dir'] . "/" . $explodedPath[1] . ".php")) {
+		if (is_file($this->config['work_dir'] . "/hosts/" . $this->config['host_dir'] . "/" . $explodedPath[1] . ".php")) {
 			$JAGSRequest['path'] = "/" . $explodedPath[1] . ".php";
 			foreach($explodedPath AS $_index => $param) {
 				if (!in_array($_index, [0,1])) {
@@ -147,7 +146,7 @@ class JetAnotherGeminiServer
 		}
 		
 		// add file_path to load the content to serve
-		$JAGSRequest['file_path'] = $this->config['work_dir'] . "/" . $this->config['host_dir'] . $JAGSRequest['path'];
+		$JAGSRequest['file_path'] = $this->config['work_dir'] . "/hosts/" . $this->config['host_dir'] . $JAGSRequest['path'];
 
 		// add auth informations
 		if ($this->config['ssl_verify_peer']) {
@@ -199,7 +198,9 @@ class JetAnotherGeminiServer
 	 * The main server function.
 	 */
 	public function serve()
-	{		
+	{
+		$this->log("JAGS version " . $this->version . " started");
+		
 		$context = stream_context_create();
 
 		stream_context_set_option($context, 'ssl', 'local_cert', $this->config['certificate_file']);
@@ -277,5 +278,23 @@ class JetAnotherGeminiServer
 				fclose($forkedSocket);
 			}
 		}
+	}
+	
+	/**
+	 * deletes log files that are older than in $this->config['log_delete_after'] defined
+	 */
+	public function rotate_logs()
+	{
+		$toDeleteAfterTs = strtotime("-" . $this->config['log_delete_after']);
+		$log_list = scandir($this->config['work_dir'] . "/" . $this->config['log_dir']);
+		
+		foreach($log_list AS $log_filename) {
+			if (substr($log_filename, -4, 4) === ".log") {
+				if (filectime($this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . $log_filename) < $toDeleteAfterTs) {
+					unlink($this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . $log_filename);
+				}
+			}	
+		}
+		
 	}
 }

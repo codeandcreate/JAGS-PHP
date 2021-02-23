@@ -4,9 +4,11 @@ A simple easy to understand and extendable single PHP-Class socket server writte
 
 JAGS is based of Gemini-PHP by @neil@glasgow.social (Matrix). You can read more about it at gemini://glasgow.social/gemini-php
 
-## Changes
-
-- 2021-02-22: 202102_1 - first release
+## History
+| Date | Version | Changes |
+|---|---|---|
+| 2021-02-23 | 202102_2 | log cleanup added, more documentation |
+| 2021-02-22 | 202102_1 | first release|
 
 ## Quickstart
 
@@ -69,3 +71,11 @@ If you want virtual paths you could just place a PHP named for example ```dynami
 ```
 
 Notice: "myparam1" will be added as indexed param.
+
+## What is Gemini?
+
+[Excerpt from gemini.circumlunar.space](https://gemini.circumlunar.space/docs/specification.html):
+
+> Gemini is a client-server protocol featuring request-response transactions, broadly similar to gopher or HTTP. Connections are closed at the end of a single transaction and cannot be reused. When Gemini is served over TCP/IP, servers should listen on port 1965 (the first manned Gemini mission, Gemini 3, flew in March'65). This is an unprivileged port, so it's very easy to run a server as a "nobody" user, even if e.g. the server is written in Go and so can't drop privileges in the traditional fashion.
+
+A nice resource for more about Gemini protocoll, tools, Servers, Clients you can find at the [Awesome Gemini](https://github.com/kr1sp1n/awesome-gemini) repository.
