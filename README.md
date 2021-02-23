@@ -78,4 +78,4 @@ Notice: "myparam1" will be added as indexed param.
 
 > Gemini is a client-server protocol featuring request-response transactions, broadly similar to gopher or HTTP. Connections are closed at the end of a single transaction and cannot be reused. When Gemini is served over TCP/IP, servers should listen on port 1965 (the first manned Gemini mission, Gemini 3, flew in March'65). This is an unprivileged port, so it's very easy to run a server as a "nobody" user, even if e.g. the server is written in Go and so can't drop privileges in the traditional fashion.
 
-A nice resource for more about Gemini protocoll, tools, Servers, Clients you can find at the [Awesome Gemini](https://github.com/kr1sp1n/awesome-gemini) repository.
+More about Gemini protocol, tools, servers, clients you can find at the [Awesome Gemini](https://github.com/kr1sp1n/awesome-gemini) repository.
