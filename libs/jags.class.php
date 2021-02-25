@@ -123,15 +123,17 @@ class JetAnotherGeminiServer
 		$explodedPath = explode("/", $JAGSRequest['path']);
 		if (is_file($this->config['work_dir'] . "/hosts/" . $this->config['host_dir'] . "/" . $explodedPath[1] . ".php")) {
 			$JAGSRequest['path'] = "/" . $explodedPath[1] . ".php";
+			$pathParams = [];
 			foreach($explodedPath AS $_index => $param) {
 				if (!in_array($_index, [0,1])) {
-					$JAGSRequest['query'] .= (!empty($JAGSRequest['query']) ? "&" : "") . urldecode($param);
+					$pathParams[] = urldecode($param);
 				}
 			}
+			$JAGSRequest['query'] = implode("&", $pathParams) . (!empty($JAGSRequest['query']) ? ("&" . $JAGSRequest['query']) : "");
 		}	
 
 		// fill $_GET and $parsed_url['get']:
-		if (isset($JAGSRequest['query']) && !empty($JAGSRequest['query'])) {
+		if (!empty($JAGSRequest['query'])) {
 			$_tmp_GET = explode("&", $JAGSRequest['query']);
 			foreach($_tmp_GET AS $_index => $_param) {
 				$_param = explode("=", $_param);
