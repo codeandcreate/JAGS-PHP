@@ -13,7 +13,7 @@ class JetAnotherGeminiServer
 	private $config = [];
 	
 	// version info
-	private $version = "202102_1";
+	private $version = "202102_4";
 	
 	public function __construct(array $config)
 	{
@@ -53,10 +53,29 @@ class JetAnotherGeminiServer
 	/**
 	 * a simple logging function
 	 */
-	public function log ($ip, $status_code = "", $meta = "", $filepath = "", $filesize = ""): bool
+	public function log($type = "access", $ipOrMessage, $status_code = "", $meta = "", $filepath = "", $filesize = ""): bool
 	{
-		$log_file = $this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . date("Y-m-d") . "_" . $this->config['host_dir'] . ".log";
-		$str = date("Y-m-d H:i:s") . $this->config['log_sep'] . (microtime(true) * 10000) . $this->config['log_sep'] . $ip . $this->config['log_sep'] . $status_code . $this->config['log_sep'] . $meta.$this->config['log_sep'] . $filepath . $this->config['log_sep'] . $filesize . "\n";
+	    switch($type) {
+	        case 'error':
+	            $log_file = $this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . date("Y-m-d") . "_" . $this->config['host_dir'] . "_error.log";
+		        $str = 
+		        	date("Y-m-d H:i:s") . $this->config['log_sep'] . 
+		        	(microtime(true) * 10000) . $this->config['log_sep'] . 
+		        	$ipOrMessage . "\n";
+	            break;
+	        default:
+	            $log_file = $this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . date("Y-m-d") . "_" . $this->config['host_dir'] . ".log";
+		        $str = 
+		        	date("Y-m-d H:i:s") . $this->config['log_sep'] . 
+		        	(microtime(true) * 10000) . $this->config['log_sep'] . 
+		        	$ipOrMessage . $this->config['log_sep'] . 
+		        	$status_code . $this->config['log_sep'] . 
+		        	$meta.$this->config['log_sep'] . 
+		        	$filepath . $this->config['log_sep'] . 
+		        	$filesize . "\n";
+	            break;
+	    }
+	    
 		return file_put_contents($log_file, $str, FILE_APPEND);
 	}
 	
@@ -133,7 +152,7 @@ class JetAnotherGeminiServer
 		}	
 
 		// fill $_GET and $parsed_url['get']:
-		if (!empty($JAGSRequest['query'])) {
+		if (isset($JAGSRequest['query']) && !empty($JAGSRequest['query'])) {
 			$_tmp_GET = explode("&", $JAGSRequest['query']);
 			foreach($_tmp_GET AS $_index => $_param) {
 				$_param = explode("=", $_param);
@@ -201,7 +220,7 @@ class JetAnotherGeminiServer
 	 */
 	public function serve()
 	{
-		$this->log("JAGS version " . $this->version . " started");
+		$this->log("access", "JAGS version " . $this->version . " started");
 		
 		$context = stream_context_create();
 
@@ -248,14 +267,21 @@ class JetAnotherGeminiServer
 						switch ($JAGSReturn['meta']) {
 							// run dynamic code
 							case 'text/x-php':
-								$JAGSReturn['meta'] = 'text/gemini'; // overwrite data type
-								ob_start(); // turns on output buffering
-								include $JAGSRequest['file_path']; // output goes only to buffer
-								if (empty($JAGSReturn['content'])) { // check if the include filled the content already
-									$JAGSReturn['content'] = ob_get_contents(); // stores buffer contents to the variable
+							    // external php scripts must be packed in a try/catch block, to prevent server crashes
+								try {
+								    $JAGSReturn['meta'] = 'text/gemini'; // overwrite data type
+								    ob_start(); // turns on output buffering
+									include $JAGSRequest['file_path']; // output goes only to buffer
+								    if (empty($JAGSReturn['content'])) { // check if the include filled the content already
+									    $JAGSReturn['content'] = ob_get_contents(); // stores buffer contents to the variable
+								    }
+								    $JAGSReturn['file_size'] = strlen($JAGSReturn['content']);
+								    ob_end_clean();
+								} catch (\Throwable $e) {
+								    $JAGSReturn['status_code'] = '40';
+								    $JAGSReturn['meta'] = '';
+									$this->log("error", "Exception on running dynamic code (" . $JAGSRequest['file_path'] . "): \n" . $e->getMessage() . "\n" . $e->getTraceAsString());
 								}
-								$JAGSReturn['file_size'] = strlen($JAGSReturn['content']);
-								ob_end_clean();
 								break;
 							// serve other stuff directly
 							default:
@@ -268,13 +294,13 @@ class JetAnotherGeminiServer
 					}
 		
 					if ($this->config['logging']) {
-						$this->log($remoteIP, $JAGSReturn['status_code'], $JAGSReturn['meta'], $JAGSRequest['file_path'], $JAGSReturn['file_size']);
+						$this->log("access", $remoteIP, $JAGSReturn['status_code'], $JAGSReturn['meta'], $JAGSRequest['file_path'], $JAGSReturn['file_size']);
 					}
 					
 					fwrite($forkedSocket, $JAGSReturn['status_code'] . " " . $JAGSReturn['meta'] . "\r\n" . $JAGSReturn['content'] ?: false);
 				} else {
 					if ($this->config['logging']) {
-						$this->log("ERROR: can't establish connection. check configuration.");
+						$this->log("error", "Can't establish connection. check configuration.");
 					}
 				}
 				fclose($forkedSocket);
