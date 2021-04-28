@@ -7,6 +7,7 @@ JAGS is based of Gemini-PHP by @neil@glasgow.social (Matrix). You can read more 
 ## History
 | Date | Version | Changes |
 |---|---|---|
+| 2021-04-28 | 202104_1 | bugfix for high cpu load |
 | 2021-02-25 | 202102_4 | bugfix for path params, try/catch for external php scripts, better get params translation, better logging |
 | 2021-02-23 | 202102_2 | log cleanup added, more documentation |
 | 2021-02-22 | 202102_1 | first release|
