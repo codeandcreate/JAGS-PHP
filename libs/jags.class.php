@@ -13,7 +13,7 @@ class JetAnotherGeminiServer
 	private $config = [];
 	
 	// version info
-	private $version = "202102_4";
+	private $version = "202104_1";
 	
 	public function __construct(array $config)
 	{
