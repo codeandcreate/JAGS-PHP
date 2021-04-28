@@ -124,11 +124,6 @@ class JetAnotherGeminiServer
 		if (empty($JAGSRequest['path']) || $JAGSRequest['path'] === "/") {
 			$JAGSRequest['path'] = "/" . $this->config['default_index_file'];
 		}
-
-		// make it possible to get rid of .gemini extensions
-		if (is_file($this->config['work_dir'] . "/hosts/" . $this->config['host_dir'] . $JAGSRequest['path'] . ".gemini")) {
-			$JAGSRequest['path'] .= ".gemini";
-		}
 		
 		/*
 		 * make it possible to render virtual paths with a php-script in the host root directory.
@@ -150,6 +145,15 @@ class JetAnotherGeminiServer
 			}
 			$JAGSRequest['query'] = implode("&", $pathParams) . (!empty($JAGSRequest['query']) ? ("&" . $JAGSRequest['query']) : "");
 		}	
+		
+
+		// make it possible to get rid of .php, .gmi and .gemini extensions
+		foreach (['php', 'gmi', 'gemini'] AS $suffixToCheck) {
+			if (is_file($this->config['work_dir'] . "/hosts/" . $this->config['host_dir'] . $JAGSRequest['path'] . "." . $suffixToCheck)) {
+				$JAGSRequest['path'] .= "." . $suffixToCheck;
+				break;
+			}
+		}
 
 		// fill $_GET and $parsed_url['get']:
 		if (isset($JAGSRequest['query']) && !empty($JAGSRequest['query'])) {
@@ -222,6 +226,7 @@ class JetAnotherGeminiServer
 	{
 		$this->log("access", "JAGS version " . $this->version . " started");
 		
+		$connections = [];
 		$context = stream_context_create();
 
 		stream_context_set_option($context, 'ssl', 'local_cert', $this->config['certificate_file']);
@@ -231,6 +236,7 @@ class JetAnotherGeminiServer
 		stream_context_set_option($context, 'ssl', 'capture_peer_cert', $this->config['ssl_capture_peer_cert']);
 		
 		$socket = stream_socket_server("tcp://" . $this->config['ip'] . ":" . $this->config['port'], $errno, $errstr, STREAM_SERVER_BIND|STREAM_SERVER_LISTEN, $context);
+		$connections[] = $socket;
 		
 		// apply patch from @nervuri:matrix.org to stop supporting out of spec versions of TLS
 		$cryptoMethod = STREAM_CRYPTO_METHOD_TLS_SERVER
@@ -238,72 +244,106 @@ class JetAnotherGeminiServer
 			& ~ STREAM_CRYPTO_METHOD_TLSv1_1_SERVER;
 
 		while(true) {
-			$forkedSocket = @stream_socket_accept($socket, "-1", $remoteIP);
-			if (!is_bool($forkedSocket)) {
-				stream_set_blocking($forkedSocket, true);
-				$enableCryptoReturn = @stream_socket_enable_crypto($forkedSocket, true, $cryptoMethod);
-				if ($enableCryptoReturn === true) {
-					$line = fread($forkedSocket, 1024);
-					stream_set_blocking($forkedSocket, false);
-		
-					// default return values
-					$content = false;
-					$meta = "";
-					$file_size = 0;
-					
-					// get request details
-					$JAGSRequest = $this->get_jags_request($line, $forkedSocket);
+			$reads = $connections;
+	        $writes = NULL;
+	        $excepts = NULL;
+			$modified = stream_select($reads, $writes, $excepts, 5);
+         	if ($modified === false) {
+            	break;
+         	}
+
+        	foreach ($reads as $modifiedRead) {
+            	if ($modifiedRead === $socket) {
+					$forkedSocket = @stream_socket_accept($socket, "-1", $remoteIP);
+					if (!is_bool($forkedSocket)) {
+						$connections[] = $forkedSocket;
+
+						stream_set_blocking($forkedSocket, true);
+						$enableCryptoReturn = @stream_socket_enable_crypto($forkedSocket, true, $cryptoMethod);
+						if ($enableCryptoReturn === true) {
+							$line = fread($forkedSocket, 1024);
+							stream_set_blocking($forkedSocket, false);
+				
+							// default return values
+							$content = false;
+							$meta = "";
+							$file_size = 0;
 							
-					// runtime vars 			
-					$JAGSReturn = [
-						'content' => false,
-						'status_code' => $this->get_status_code($JAGSRequest['file_path']),
-						'meta' => "",
-						'file_size' => 0
-					]; 
-					
-					if ($JAGSReturn['status_code'] === "20") {
-						$JAGSReturn['meta'] = $this->get_mime_type($JAGSRequest['file_path']);
-						switch ($JAGSReturn['meta']) {
-							// run dynamic code
-							case 'text/x-php':
-							    // external php scripts must be packed in a try/catch block, to prevent server crashes
-								try {
-								    $JAGSReturn['meta'] = 'text/gemini'; // overwrite data type
-								    ob_start(); // turns on output buffering
-									include $JAGSRequest['file_path']; // output goes only to buffer
-								    if (empty($JAGSReturn['content'])) { // check if the include filled the content already
-									    $JAGSReturn['content'] = ob_get_contents(); // stores buffer contents to the variable
-								    }
-								    $JAGSReturn['file_size'] = strlen($JAGSReturn['content']);
-								    ob_end_clean();
-								} catch (\Throwable $e) {
-								    $JAGSReturn['status_code'] = '40';
-								    $JAGSReturn['meta'] = '';
-									$this->log("error", "Exception on running dynamic code (" . $JAGSRequest['file_path'] . "): \n" . $e->getMessage() . "\n" . $e->getTraceAsString());
+							// get request details
+							$JAGSRequest = $this->get_jags_request($line, $forkedSocket);
+									
+							// runtime vars 			
+							$JAGSReturn = [
+								'content' => false,
+								'status_code' => $this->get_status_code($JAGSRequest['file_path']),
+								'meta' => "",
+								'file_size' => 0
+							]; 
+							
+							if ($JAGSReturn['status_code'] === "20") {
+								$JAGSReturn['meta'] = $this->get_mime_type($JAGSRequest['file_path']);
+								switch ($JAGSReturn['meta']) {
+									// run dynamic code
+									case 'text/x-php':
+									    // external php scripts must be packed in a try/catch block, to prevent server crashes
+										try {
+										    $JAGSReturn['meta'] = 'text/gemini'; // overwrite data type
+										    ob_start(); // turns on output buffering
+											include $JAGSRequest['file_path']; // output goes only to buffer
+										    if (empty($JAGSReturn['content'])) { // check if the include filled the content already
+											    $JAGSReturn['content'] = ob_get_contents(); // stores buffer contents to the variable
+										    }
+										    $JAGSReturn['file_size'] = strlen($JAGSReturn['content']);
+										    ob_end_clean();
+										} catch (\Throwable $e) {
+										    $JAGSReturn['status_code'] = '40';
+										    $JAGSReturn['meta'] = '';
+											$this->log("error", "Exception on running dynamic code (" . $JAGSRequest['file_path'] . "): \n" . $e->getMessage() . "\n" . $e->getTraceAsString());
+										}
+										break;
+									// serve other stuff directly
+									default:
+										$JAGSReturn['file_size'] = filesize($JAGSRequest['file_path']);
+										$JAGSReturn['content'] = file_get_contents($JAGSRequest['file_path']);
+										break;
 								}
-								break;
-							// serve other stuff directly
-							default:
-								$JAGSReturn['file_size'] = filesize($JAGSRequest['file_path']);
-								$JAGSReturn['content'] = file_get_contents($JAGSRequest['file_path']);
-								break;
+							} else {
+								$JAGSReturn['meta'] = "Not found";
+							}
+				
+							if ($this->config['logging']) {
+								$this->log("access", $remoteIP, $JAGSReturn['status_code'], $JAGSReturn['meta'], $JAGSRequest['file_path'], $JAGSReturn['file_size']);
+							}
+							
+							fwrite($forkedSocket, $JAGSReturn['status_code'] . " " . $JAGSReturn['meta'] . "\r\n" . $JAGSReturn['content'] ?: false);
+						} else {
+							if ($this->config['logging']) {
+								$this->log("error", "Can't establish connection. check configuration.");
+							}
 						}
-					} else {
-						$JAGSReturn['meta'] = "Not found";
+						fclose($forkedSocket);
 					}
-		
-					if ($this->config['logging']) {
-						$this->log("access", $remoteIP, $JAGSReturn['status_code'], $JAGSReturn['meta'], $JAGSRequest['file_path'], $JAGSReturn['file_size']);
-					}
-					
-					fwrite($forkedSocket, $JAGSReturn['status_code'] . " " . $JAGSReturn['meta'] . "\r\n" . $JAGSReturn['content'] ?: false);
 				} else {
-					if ($this->config['logging']) {
-						$this->log("error", "Can't establish connection. check configuration.");
-					}
+					// garbage collector 1
+					$data = fread($modifiedRead, 1024);
+	                if (strlen($data) === 0 || $data === false) {
+	                    // connection closed
+	                    $idx = array_search($modifiedRead, $connections, TRUE);
+	                    fclose($modifiedRead);
+	                    if ($idx != -1) {
+	                        unset($connections[$idx]);
+	                        $connections = array_merge($connections);
+	                    }
+	                }
+                }
+			}
+
+			// garbage collector 2
+			foreach ($connections AS $_index => $connectionToCheck) {
+				if (get_resource_type($connectionToCheck) !== "stream") {
+					unset($connections[$_index]);
+	                $connections = array_merge($connections);
 				}
-				fclose($forkedSocket);
 			}
 		}
 	}
