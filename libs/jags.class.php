@@ -13,7 +13,7 @@ class JetAnotherGeminiServer
 	private $config = [];
 	
 	// version info
-	private $version = "202104_1";
+	private $version = "202109_1";
 	
 	public function __construct(array $config)
 	{
@@ -235,7 +235,13 @@ class JetAnotherGeminiServer
 		stream_context_set_option($context, 'ssl', 'verify_peer', $this->config['ssl_verify_peer']);
 		stream_context_set_option($context, 'ssl', 'capture_peer_cert', $this->config['ssl_capture_peer_cert']);
 		
-		$socket = stream_socket_server("tcp://" . $this->config['ip'] . ":" . $this->config['port'], $errno, $errstr, STREAM_SERVER_BIND|STREAM_SERVER_LISTEN, $context);
+		$socket = stream_socket_server(
+			"tcp://" . $this->config['ip'] . ":" . $this->config['port'], 
+			$errno, 
+			$errstr, 
+			STREAM_SERVER_BIND|STREAM_SERVER_LISTEN, 
+			$context
+		);
 		$connections[] = $socket;
 		
 		// apply patch from @nervuri:matrix.org to stop supporting out of spec versions of TLS
@@ -254,15 +260,14 @@ class JetAnotherGeminiServer
 
         	foreach ($reads as $modifiedRead) {
             	if ($modifiedRead === $socket) {
-					$forkedSocket = @stream_socket_accept($socket, "-1", $remoteIP);
+					$forkedSocket = @stream_socket_accept($socket, -1, $remoteIP);
 					if (!is_bool($forkedSocket)) {
 						$connections[] = $forkedSocket;
 
 						stream_set_blocking($forkedSocket, true);
 						$enableCryptoReturn = @stream_socket_enable_crypto($forkedSocket, true, $cryptoMethod);
 						if ($enableCryptoReturn === true) {
-							$line = fread($forkedSocket, 1024);
-							stream_set_blocking($forkedSocket, false);
+							$line = stream_get_line($forkedSocket, 1024, "\n");
 				
 							// default return values
 							$content = false;
@@ -303,19 +308,25 @@ class JetAnotherGeminiServer
 										break;
 									// serve other stuff directly
 									default:
+										$JAGSReturn['content']   = file_get_contents($JAGSRequest['file_path']);
 										$JAGSReturn['file_size'] = filesize($JAGSRequest['file_path']);
-										$JAGSReturn['content'] = file_get_contents($JAGSRequest['file_path']);
 										break;
 								}
 							} else {
 								$JAGSReturn['meta'] = "Not found";
 							}
 				
+				
+							fputs($forkedSocket, $JAGSReturn['status_code'] . " " . $JAGSReturn['meta'] . "\r\n" ?: false);										
+							if (!empty($JAGSReturn['content'])) {
+								fputs($forkedSocket, $JAGSReturn['content']);	
+							}
+				
 							if ($this->config['logging']) {
 								$this->log("access", $remoteIP, $JAGSReturn['status_code'], $JAGSReturn['meta'], $JAGSRequest['file_path'], $JAGSReturn['file_size']);
 							}
 							
-							fwrite($forkedSocket, $JAGSReturn['status_code'] . " " . $JAGSReturn['meta'] . "\r\n" . $JAGSReturn['content'] ?: false);
+							fflush($forkedSocket); 
 						} else {
 							if ($this->config['logging']) {
 								$this->log("error", "Can't establish connection. check configuration.");
@@ -366,3 +377,4 @@ class JetAnotherGeminiServer
 		
 	}
 }
+
