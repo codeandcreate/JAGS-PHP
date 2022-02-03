@@ -7,6 +7,7 @@ JAGS is based of Gemini-PHP by @neil@glasgow.social (Matrix). You can read more 
 ## History
 | Date | Version | Changes |
 |---|---|---|
+| 2022-02-03 | 202202_1 | Multiple (sub) domains |
 | 2021-09-11 | 202109_1 | fixed bug for serving files that are bigger than ~100kb |
 | 2021-04-28 | 202104_1 | bugfix for high cpu load |
 | 2021-02-25 | 202102_4 | bugfix for path params, try/catch for external php scripts, better get params translation, better logging |
@@ -16,13 +17,18 @@ JAGS is based of Gemini-PHP by @neil@glasgow.social (Matrix). You can read more 
 ## Quickstart
 
 1. git clone this repository (or download a zipped snapshot)
-2. create a new ssl certificate for your host with ```openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365```
+2. create a new ssl certificate for your host with ```openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes```
 3. concet the key and cert to one file with ```cp cert.pem certs/yourdomain.com.pem; cat key.pem >> certs/yourdomain.com.pem```
 4. copy ```config.sample.php``` to ```config.php```
-5. edit lines 22 and 33 and add your certificate and password to them
+5. configure your hosts in line 49 
 6. run the server with ```php server.php```
 
-For more details look at the comments in ```config.sample.php```, ```server.php``` or the files in the hosts/default directory.
+For more details look at the comments in ```config.sample.php```, ```server.php``` and the files in the hosts/default directory.
+
+## Upgrade from 202109_1
+
+- Check the changes in the config.sample.php. With the new hosts-Array you need to reconfigure your server
+- If you use a certificate with pass phrase you must replace it with one certificate without password.
 
 ## Dynamic pages with PHP
 

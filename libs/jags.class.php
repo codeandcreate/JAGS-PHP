@@ -13,7 +13,7 @@ class JetAnotherGeminiServer
 	private $config = [];
 	
 	// version info
-	private $version = "202109_1";
+	private $version = "202202_1";
 	
 	public function __construct(array $config)
 	{
@@ -177,13 +177,12 @@ class JetAnotherGeminiServer
 		$JAGSRequest['file_path'] = $this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . $JAGSRequest['path'];
 
 		// add auth informations
-		//if ($this->config['ssl_verify_peer']) {
+		if ($this->config['ssl_verify_peer']) {
 			$stream_context_get_params = @stream_context_get_params($socket);
-			var_export($stream_context_get_params);
 			if (!empty($stream_context_get_params['options']['ssl']['peer_certificate'])) {
 				$JAGSRequest['auth'] = @openssl_x509_parse($stream_context_get_params['options']['ssl']['peer_certificate']);
 			}
-		//}
+		}
 
 		return $JAGSRequest;
 	}
