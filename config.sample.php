@@ -8,19 +8,16 @@ $config = [
  * This is your certificate file.  A self-signed certificate is acceptable here.
  * You can generate one using:
  *
- *   openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365
+ *   openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
  *
  * Then combine the key and certificate and copy them to the certs directory:
  *
  *  cp cert.pem certs/yourdomain.com.pem
  *  cat key.pem >> certs/yourdomain.com.pem
-
- * Enter the passphrase (if you used one) below.
+ *
+ * Do not enter a passphrase!
  *
  */
-
-//	'certificate_file'			=> "",
-//	'certificate_passphrase'	=> "",
 
 // Additional ssl options
 //	'ssl_verify_peer'			=> false,
@@ -48,8 +45,14 @@ $config = [
 // 'work_dir' is the folder that contains config.php, server.php, logs/, libs/, ...
 // 'work_dir' => "/var/gemini/",
 
-// If you want more than one server running you can change the root directory below "hosts/":
-//	'host_dir' => "default",
+// configure your hosts:
+// 'hosts' => [
+//    'localhost' => [                            // domain name
+//        'root' => "default",                    // folder below 'work_dir'
+//        'cert' => "certs/yourdomain.com.pem",   // your cert file
+//        'cert_domain' => "localhost"            // domain name registered in the cert
+//    ],
+// ]
 
 // The log folder is always relative to 'work_dir'
 //	'log_dir' => "logs",

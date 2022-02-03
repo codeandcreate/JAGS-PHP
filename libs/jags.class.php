@@ -23,11 +23,10 @@ class JetAnotherGeminiServer
 				'ip' 						=> "0",
 				'port' 						=> "1965",
 				'work_dir'					=> realpath(dirname(__FILE__) . "/.."),
-				'host_dir' 					=> "default",
+				'hosts' 					=> ['localhost' => ["root" => "default"]],
 				'log_dir' 					=> "logs",
 				'default_index_file' 		=> "index.gemini",
-				'certificate_file'			=> "",
-				'certificate_passphrase'	=> "",
+				'certs'						=> [],
 				'ssl_verify_peer'			=> false,
 				'ssl_capture_peer_cert'		=> false,
 				'logging' 					=> true,
@@ -36,10 +35,14 @@ class JetAnotherGeminiServer
 			],
 			$config
 		);
-		
+
 		// check for certificate
-		if (!isset($this->config['certificate_file']) || !is_readable($this->config['work_dir'] . "/" . $this->config['certificate_file'])) {
-			die("ERROR: Certificate file (" . $this->config['certificate_file'] . ") not readable.\n");
+		foreach($this->config['hosts'] AS $_hostConfig) {
+			if (!isset($_hostConfig['cert']) || !isset($_hostConfig['cert_domain']) || !is_readable($this->config['work_dir'] . "/" . $_hostConfig['cert'])) {
+				die("ERROR: Certificate file (" . $_hostConfig['cert'] . ") not readable.\n");
+			} else {
+				$this->config['certs'][$_hostConfig['cert_domain']] = $this->config['work_dir'] . "/" . $_hostConfig['cert'];
+			}
 		}
 		
 		// enable access logging (if configured)
@@ -53,18 +56,18 @@ class JetAnotherGeminiServer
 	/**
 	 * a simple logging function
 	 */
-	public function log($type = "access", $ipOrMessage, $status_code = "", $meta = "", $filepath = "", $filesize = ""): bool
+	public function log($type = "access", $ipOrMessage = "", $status_code = "", $meta = "", $filepath = "", $filesize = ""): bool
 	{
 	    switch($type) {
 	        case 'error':
-	            $log_file = $this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . date("Y-m-d") . "_" . $this->config['host_dir'] . "_error.log";
+	            $log_file = $this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . date("Y-m-d") . "_error.log";
 		        $str = 
 		        	date("Y-m-d H:i:s") . $this->config['log_sep'] . 
 		        	(microtime(true) * 10000) . $this->config['log_sep'] . 
 		        	$ipOrMessage . "\n";
 	            break;
 	        default:
-	            $log_file = $this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . date("Y-m-d") . "_" . $this->config['host_dir'] . ".log";
+	            $log_file = $this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . date("Y-m-d") . ".log";
 		        $str = 
 		        	date("Y-m-d H:i:s") . $this->config['log_sep'] . 
 		        	(microtime(true) * 10000) . $this->config['log_sep'] . 
@@ -135,7 +138,7 @@ class JetAnotherGeminiServer
 		 * ]
 		 */
 		$explodedPath = explode("/", $JAGSRequest['path']);
-		if (is_file($this->config['work_dir'] . "/hosts/" . $this->config['host_dir'] . "/" . $explodedPath[1] . ".php")) {
+		if (is_file($this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . "/" . $explodedPath[1] . ".php")) {
 			$JAGSRequest['path'] = "/" . $explodedPath[1] . ".php";
 			$pathParams = [];
 			foreach($explodedPath AS $_index => $param) {
@@ -149,7 +152,7 @@ class JetAnotherGeminiServer
 
 		// make it possible to get rid of .php, .gmi and .gemini extensions
 		foreach (['php', 'gmi', 'gemini'] AS $suffixToCheck) {
-			if (is_file($this->config['work_dir'] . "/hosts/" . $this->config['host_dir'] . $JAGSRequest['path'] . "." . $suffixToCheck)) {
+			if (is_file($this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . $JAGSRequest['path'] . "." . $suffixToCheck)) {
 				$JAGSRequest['path'] .= "." . $suffixToCheck;
 				break;
 			}
@@ -171,7 +174,7 @@ class JetAnotherGeminiServer
 		}
 		
 		// add file_path to load the content to serve
-		$JAGSRequest['file_path'] = $this->config['work_dir'] . "/hosts/" . $this->config['host_dir'] . $JAGSRequest['path'];
+		$JAGSRequest['file_path'] = $this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . $JAGSRequest['path'];
 
 		// add auth informations
 		if ($this->config['ssl_verify_peer']) {
@@ -227,13 +230,17 @@ class JetAnotherGeminiServer
 		$this->log("access", "JAGS version " . $this->version . " started");
 		
 		$connections = [];
-		$context = stream_context_create();
-
-		stream_context_set_option($context, 'ssl', 'local_cert', $this->config['certificate_file']);
-		stream_context_set_option($context, 'ssl', 'passphrase', $this->config['certificate_passphrase']);
-		stream_context_set_option($context, 'ssl', 'allow_self_signed', true);
-		stream_context_set_option($context, 'ssl', 'verify_peer', $this->config['ssl_verify_peer']);
-		stream_context_set_option($context, 'ssl', 'capture_peer_cert', $this->config['ssl_capture_peer_cert']);
+		$context = stream_context_create(
+			array(
+				'ssl' => array(
+					'verify_peer' => $this->config['ssl_verify_peer'],
+					'capture_peer_cert' => $this->config['ssl_capture_peer_cert'],
+					'allow_self_signed' => true,
+					'SNI_enabled' => true,
+					'SNI_server_certs' => $this->config['certs']
+				)
+			)
+		);
 		
 		$socket = stream_socket_server(
 			"tcp://" . $this->config['ip'] . ":" . $this->config['port'], 
@@ -266,6 +273,9 @@ class JetAnotherGeminiServer
 
 						stream_set_blocking($forkedSocket, true);
 						$enableCryptoReturn = @stream_socket_enable_crypto($forkedSocket, true, $cryptoMethod);
+						if ($enableCryptoReturn !== true) {
+							$enableCryptoReturn = @stream_socket_enable_crypto($forkedSocket, false, $cryptoMethod);
+						}
 						if ($enableCryptoReturn === true) {
 							$line = stream_get_line($forkedSocket, 1024, "\n");
 				
