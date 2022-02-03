@@ -177,12 +177,13 @@ class JetAnotherGeminiServer
 		$JAGSRequest['file_path'] = $this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . $JAGSRequest['path'];
 
 		// add auth informations
-		if ($this->config['ssl_verify_peer']) {
+		//if ($this->config['ssl_verify_peer']) {
 			$stream_context_get_params = @stream_context_get_params($socket);
+			var_export($stream_context_get_params);
 			if (!empty($stream_context_get_params['options']['ssl']['peer_certificate'])) {
 				$JAGSRequest['auth'] = @openssl_x509_parse($stream_context_get_params['options']['ssl']['peer_certificate']);
 			}
-		}
+		//}
 
 		return $JAGSRequest;
 	}
@@ -231,15 +232,16 @@ class JetAnotherGeminiServer
 		
 		$connections = [];
 		$context = stream_context_create(
-			array(
-				'ssl' => array(
+			[
+				'ssl' => [
 					'verify_peer' => $this->config['ssl_verify_peer'],
+        			'verify_peername' => true,
 					'capture_peer_cert' => $this->config['ssl_capture_peer_cert'],
 					'allow_self_signed' => true,
 					'SNI_enabled' => true,
 					'SNI_server_certs' => $this->config['certs']
-				)
-			)
+				]
+			]
 		);
 		
 		$socket = stream_socket_server(
@@ -273,9 +275,7 @@ class JetAnotherGeminiServer
 
 						stream_set_blocking($forkedSocket, true);
 						$enableCryptoReturn = @stream_socket_enable_crypto($forkedSocket, true, $cryptoMethod);
-						if ($enableCryptoReturn !== true) {
-							$enableCryptoReturn = @stream_socket_enable_crypto($forkedSocket, false, $cryptoMethod);
-						}
+
 						if ($enableCryptoReturn === true) {
 							$line = stream_get_line($forkedSocket, 1024, "\n");
 				
@@ -326,7 +326,6 @@ class JetAnotherGeminiServer
 								$JAGSReturn['meta'] = "Not found";
 							}
 				
-				
 							fputs($forkedSocket, $JAGSReturn['status_code'] . " " . $JAGSReturn['meta'] . "\r\n" ?: false);										
 							if (!empty($JAGSReturn['content'])) {
 								fputs($forkedSocket, $JAGSReturn['content']);	
@@ -338,8 +337,9 @@ class JetAnotherGeminiServer
 							
 							fflush($forkedSocket); 
 						} else {
+							$lastError = error_get_last();
 							if ($this->config['logging']) {
-								$this->log("error", "Can't establish connection. check configuration.");
+								$this->log("error", "Can't establish connection. check configuration. (" . ($lastError ? $lastError['message'] . "/" . $lastError['line'] : "" ) . ")");
 							}
 						}
 						fclose($forkedSocket);

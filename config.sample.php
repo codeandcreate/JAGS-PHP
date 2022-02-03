@@ -19,7 +19,7 @@ $config = [
  *
  */
 
-// Additional ssl options
+// Additional ssl options - shouldn't be used for a public host atm.
 //	'ssl_verify_peer'			=> false,
 //	'ssl_capture_peer_cert'		=> false,
 	
