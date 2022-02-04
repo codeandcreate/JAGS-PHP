@@ -13,7 +13,7 @@ class JetAnotherGeminiServer
 	private $config = [];
 	
 	// version info
-	private $version = "202202_1";
+	private $version = "202202_2";
 	
 	public function __construct(array $config)
 	{
@@ -35,6 +35,9 @@ class JetAnotherGeminiServer
 			],
 			$config
 		);
+
+		// get the absolute path of the work dir
+		$this->config['work_dir'] = realpath($this->config['work_dir']);
 
 		// check for certificate
 		foreach($this->config['hosts'] AS $_hostConfig) {
@@ -119,10 +122,9 @@ class JetAnotherGeminiServer
 			parse_url($url)
 		);
 
-		// Kristall Browser is adding "__" to the end of the filenames
-		// wtf am I missing?
-		// also removing ".." to mitigate against directory traversal
-		$JAGSRequest['path'] = str_replace(array("..", "__"), "", $JAGSRequest['path']);
+		// gets the root folder of the current request
+		$_serveRoot = realpath($this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root']) . "/"; 
+
 		// force an index file to be appended if a filename is missing
 		if (empty($JAGSRequest['path']) || $JAGSRequest['path'] === "/") {
 			$JAGSRequest['path'] = "/" . $this->config['default_index_file'];
@@ -138,7 +140,7 @@ class JetAnotherGeminiServer
 		 * ]
 		 */
 		$explodedPath = explode("/", $JAGSRequest['path']);
-		if (is_file($this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . "/" . $explodedPath[1] . ".php")) {
+		if (is_file(realpath($this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . "/" . $explodedPath[1] . ".php"))) {
 			$JAGSRequest['path'] = "/" . $explodedPath[1] . ".php";
 			$pathParams = [];
 			foreach($explodedPath AS $_index => $param) {
@@ -152,7 +154,7 @@ class JetAnotherGeminiServer
 
 		// make it possible to get rid of .php, .gmi and .gemini extensions
 		foreach (['php', 'gmi', 'gemini'] AS $suffixToCheck) {
-			if (is_file($this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . $JAGSRequest['path'] . "." . $suffixToCheck)) {
+			if (realpath($this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . $JAGSRequest['path'] . "." . $suffixToCheck) !== false) {
 				$JAGSRequest['path'] .= "." . $suffixToCheck;
 				break;
 			}
@@ -172,9 +174,6 @@ class JetAnotherGeminiServer
 				$_GET[$_param[0]] = $_param[1];
 			}
 		}
-		
-		// add file_path to load the content to serve
-		$JAGSRequest['file_path'] = $this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . $JAGSRequest['path'];
 
 		// add auth informations
 		if ($this->config['ssl_verify_peer']) {
@@ -182,6 +181,15 @@ class JetAnotherGeminiServer
 			if (!empty($stream_context_get_params['options']['ssl']['peer_certificate'])) {
 				$JAGSRequest['auth'] = @openssl_x509_parse($stream_context_get_params['options']['ssl']['peer_certificate']);
 			}
+		}
+		
+		// add file_path to load the content to serve
+		$JAGSRequest['file_path'] = realpath($this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . $JAGSRequest['path']);
+
+
+		// checks if the current requested file lays in the $_serveRoot
+		if (substr($JAGSRequest['file_path'],0,strlen($_serveRoot)) !== $_serveRoot) {
+			$JAGSRequest['file_path'] = "";
 		}
 
 		return $JAGSRequest;
@@ -194,8 +202,7 @@ class JetAnotherGeminiServer
 	{
 		if (is_file($filepath) and file_exists($filepath)) {
 			return "20";
-		}
-		if (!file_exists($filepath)) {
+		} else if (!file_exists($filepath)) {
 			return "51";
 		}
 		

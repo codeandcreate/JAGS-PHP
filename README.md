@@ -7,6 +7,7 @@ JAGS is based of Gemini-PHP by @neil@glasgow.social (Matrix). You can read more 
 ## History
 | Date | Version | Changes |
 |---|---|---|
+| 2022-02-04 | 202202_2 | security fix |
 | 2022-02-03 | 202202_1 | Multiple (sub) domains |
 | 2021-09-11 | 202109_1 | fixed bug for serving files that are bigger than ~100kb |
 | 2021-04-28 | 202104_1 | bugfix for high cpu load |
