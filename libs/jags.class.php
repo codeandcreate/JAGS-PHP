@@ -11,26 +11,25 @@ class JetAnotherGeminiServer
 {
 	// stores the current server configuration
 	private $config = [];
-	
+
 	// version info
 	private $version = "202202_2";
-	
+
 	public function __construct(array $config)
 	{
 		// set default config and overwrite with custom settings:
 		$this->config = array_merge(
-			[
-				'ip' 						=> "0",
-				'port' 						=> "1965",
-				'work_dir'					=> realpath(dirname(__FILE__) . "/.."),
-				'hosts' 					=> ['localhost' => ["root" => "default"]],
-				'log_dir' 					=> "logs",
-				'default_index_file' 		=> "index.gemini",
-				'certs'						=> [],
-				'ssl_verify_peer'			=> false,
-				'ssl_capture_peer_cert'		=> false,
-				'logging' 					=> true,
-				'log_sep' 					=> "\t",
+				'ip'										=> "0",
+				'port' 									=> "1965",
+				'work_dir'							=> realpath(dirname(__FILE__) . "/.."),
+				'hosts'									=> ['localhost' => ["root" => "default"]],
+				'log_dir'								=> "logs",
+				'default_index_file'		=> "index.gemini",
+				'certs'									=> [],
+				'ssl_verify_peer'				=> false,
+				'ssl_capture_peer_cert'	=> false,
+				'logging'								=> true,
+				'log_sep'								=> "\t",
 				'log_delete_after'			=> "30days"
 			],
 			$config
@@ -47,7 +46,7 @@ class JetAnotherGeminiServer
 				$this->config['certs'][$_hostConfig['cert_domain']] = $this->config['work_dir'] . "/" . $_hostConfig['cert'];
 			}
 		}
-		
+
 		// enable access logging (if configured)
 		if ($this->config['logging']) {
 			if (!is_dir($this->config['work_dir'] . "/" . $this->config['log_dir'])) {
@@ -61,31 +60,30 @@ class JetAnotherGeminiServer
 	 */
 	public function log($type = "access", $ipOrMessage = "", $status_code = "", $meta = "", $filepath = "", $filesize = ""): bool
 	{
-	    switch($type) {
-	        case 'error':
-	            $log_file = $this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . date("Y-m-d") . "_error.log";
-		        $str = 
-		        	date("Y-m-d H:i:s") . $this->config['log_sep'] . 
-		        	(microtime(true) * 10000) . $this->config['log_sep'] . 
-		        	$ipOrMessage . "\n";
-	            break;
-	        default:
-	            $log_file = $this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . date("Y-m-d") . ".log";
-		        $str = 
-		        	date("Y-m-d H:i:s") . $this->config['log_sep'] . 
-		        	(microtime(true) * 10000) . $this->config['log_sep'] . 
-		        	$ipOrMessage . $this->config['log_sep'] . 
-		        	$status_code . $this->config['log_sep'] . 
-		        	$meta.$this->config['log_sep'] . 
-		        	$filepath . $this->config['log_sep'] . 
-		        	$filesize . "\n";
-	            break;
-	    }
-	    
+		switch($type) {
+			case 'error':
+				$log_file = $this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . date("Y-m-d") . "_error.log";
+				$str = 
+					date("Y-m-d H:i:s") . $this->config['log_sep'] . 
+					(microtime(true) * 10000) . $this->config['log_sep'] . 
+					$ipOrMessage . "\n";
+				break;
+			default:
+				$log_file = $this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . date("Y-m-d") . ".log";
+				$str = 
+					date("Y-m-d H:i:s") . $this->config['log_sep'] . 
+					(microtime(true) * 10000) . $this->config['log_sep'] . 
+					$ipOrMessage . $this->config['log_sep'] . 
+					$status_code . $this->config['log_sep'] . 
+					$meta.$this->config['log_sep'] . 
+					$filepath . $this->config['log_sep'] . 
+					$filesize . "\n";
+				break;
+		}
+ 
 		return file_put_contents($log_file, $str, FILE_APPEND);
 	}
 	
-					
 	/**
 	 * Returns the $JAGSRequest array:
 	 *
@@ -105,7 +103,7 @@ class JetAnotherGeminiServer
 	 */
 	private function get_jags_request(string $requestString, $socket): array
 	{
-		 // strip <CR><LF> from the end
+		// strip <CR><LF> from the end
 		$url = trim($requestString);
 
 		// make sure base structure is always present...
@@ -129,7 +127,7 @@ class JetAnotherGeminiServer
 		if (empty($JAGSRequest['path']) || $JAGSRequest['path'] === "/") {
 			$JAGSRequest['path'] = "/" . $this->config['default_index_file'];
 		}
-		
+
 		/*
 		 * make it possible to render virtual paths with a php-script in the host root directory.
 		 * for example the path "/dynamic/param/param=value/param" renders to:
@@ -150,7 +148,6 @@ class JetAnotherGeminiServer
 			}
 			$JAGSRequest['query'] = implode("&", $pathParams) . (!empty($JAGSRequest['query']) ? ("&" . $JAGSRequest['query']) : "");
 		}	
-		
 
 		// make it possible to get rid of .php, .gmi and .gemini extensions
 		foreach (['php', 'gmi', 'gemini'] AS $suffixToCheck) {
@@ -186,7 +183,6 @@ class JetAnotherGeminiServer
 		// add file_path to load the content to serve
 		$JAGSRequest['file_path'] = realpath($this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . $JAGSRequest['path']);
 
-
 		// checks if the current requested file lays in the $_serveRoot
 		if (substr($JAGSRequest['file_path'],0,strlen($_serveRoot)) !== $_serveRoot) {
 			$JAGSRequest['file_path'] = "";
@@ -194,13 +190,13 @@ class JetAnotherGeminiServer
 
 		return $JAGSRequest;
 	}
-	
+
 	/**
 	 * Returns the Gemini return codes based on file availability
 	 */
 	private function get_status_code($filepath) 
 	{
-		if (is_file($filepath) and file_exists($filepath)) {
+		if (is_file($filepath) && file_exists($filepath)) {
 			return "20";
 		} else if (!file_exists($filepath)) {
 			return "51";
@@ -208,7 +204,7 @@ class JetAnotherGeminiServer
 		
 		return "50";
 	}
-	
+
 	/**
 	 * Returns the mime type based on extension (gemini, gmi) and mime_content_type()
 	 */
@@ -225,23 +221,23 @@ class JetAnotherGeminiServer
 		} else {
 			$type = mime_content_type($filepath);
 		}
-		
+
 		return $type;
 	}
-	
+
 	/**
 	 * The main server function.
 	 */
 	public function serve()
 	{
 		$this->log("access", "JAGS version " . $this->version . " started");
-		
+
 		$connections = [];
 		$context = stream_context_create(
 			[
 				'ssl' => [
 					'verify_peer' => $this->config['ssl_verify_peer'],
-        			'verify_peername' => true,
+					'verify_peername' => true,
 					'capture_peer_cert' => $this->config['ssl_capture_peer_cert'],
 					'allow_self_signed' => true,
 					'SNI_enabled' => true,
@@ -249,7 +245,7 @@ class JetAnotherGeminiServer
 				]
 			]
 		);
-		
+
 		$socket = stream_socket_server(
 			"tcp://" . $this->config['ip'] . ":" . $this->config['port'], 
 			$errno, 
@@ -258,7 +254,7 @@ class JetAnotherGeminiServer
 			$context
 		);
 		$connections[] = $socket;
-		
+
 		// apply patch from @nervuri:matrix.org to stop supporting out of spec versions of TLS
 		$cryptoMethod = STREAM_CRYPTO_METHOD_TLS_SERVER
 			& ~ STREAM_CRYPTO_METHOD_TLSv1_0_SERVER
@@ -266,15 +262,16 @@ class JetAnotherGeminiServer
 
 		while(true) {
 			$reads = $connections;
-	        $writes = NULL;
-	        $excepts = NULL;
+			$writes = NULL;
+			$excepts = NULL;
 			$modified = stream_select($reads, $writes, $excepts, 5);
-         	if ($modified === false) {
-            	break;
-         	}
 
-        	foreach ($reads as $modifiedRead) {
-            	if ($modifiedRead === $socket) {
+			if ($modified === false) {
+				break;
+			}
+
+			foreach ($reads as $modifiedRead) {
+				if ($modifiedRead === $socket) {
 					$forkedSocket = @stream_socket_accept($socket, -1, $remoteIP);
 					if (!is_bool($forkedSocket)) {
 						$connections[] = $forkedSocket;
@@ -284,41 +281,41 @@ class JetAnotherGeminiServer
 
 						if ($enableCryptoReturn === true) {
 							$line = stream_get_line($forkedSocket, 1024, "\n");
-				
+
 							// default return values
 							$content = false;
 							$meta = "";
 							$file_size = 0;
-							
+
 							// get request details
 							$JAGSRequest = $this->get_jags_request($line, $forkedSocket);
-									
-							// runtime vars 			
+
+							// runtime vars
 							$JAGSReturn = [
 								'content' => false,
 								'status_code' => $this->get_status_code($JAGSRequest['file_path']),
 								'meta' => "",
 								'file_size' => 0
 							]; 
-							
+
 							if ($JAGSReturn['status_code'] === "20") {
 								$JAGSReturn['meta'] = $this->get_mime_type($JAGSRequest['file_path']);
 								switch ($JAGSReturn['meta']) {
 									// run dynamic code
 									case 'text/x-php':
-									    // external php scripts must be packed in a try/catch block, to prevent server crashes
+										// external php scripts must be packed in a try/catch block, to prevent server crashes
 										try {
-										    $JAGSReturn['meta'] = 'text/gemini'; // overwrite data type
-										    ob_start(); // turns on output buffering
+											$JAGSReturn['meta'] = 'text/gemini'; // overwrite data type
+											ob_start(); // turns on output buffering
 											include $JAGSRequest['file_path']; // output goes only to buffer
-										    if (empty($JAGSReturn['content'])) { // check if the include filled the content already
-											    $JAGSReturn['content'] = ob_get_contents(); // stores buffer contents to the variable
-										    }
-										    $JAGSReturn['file_size'] = strlen($JAGSReturn['content']);
-										    ob_end_clean();
+											if (empty($JAGSReturn['content'])) { // check if the include filled the content already
+												$JAGSReturn['content'] = ob_get_contents(); // stores buffer contents to the variable
+											}
+											$JAGSReturn['file_size'] = strlen($JAGSReturn['content']);
+											ob_end_clean();
 										} catch (\Throwable $e) {
-										    $JAGSReturn['status_code'] = '40';
-										    $JAGSReturn['meta'] = '';
+											$JAGSReturn['status_code'] = '40';
+											$JAGSReturn['meta'] = '';
 											$this->log("error", "Exception on running dynamic code (" . $JAGSRequest['file_path'] . "): \n" . $e->getMessage() . "\n" . $e->getTraceAsString());
 										}
 										break;
@@ -331,16 +328,16 @@ class JetAnotherGeminiServer
 							} else {
 								$JAGSReturn['meta'] = "Not found";
 							}
-				
+
 							fputs($forkedSocket, $JAGSReturn['status_code'] . " " . $JAGSReturn['meta'] . "\r\n" ?: false);										
 							if (!empty($JAGSReturn['content'])) {
 								fputs($forkedSocket, $JAGSReturn['content']);	
 							}
-				
+
 							if ($this->config['logging']) {
 								$this->log("access", $remoteIP, $JAGSReturn['status_code'], $JAGSReturn['meta'], $JAGSRequest['file_path'], $JAGSReturn['file_size']);
 							}
-							
+
 							fflush($forkedSocket); 
 						} else {
 							$lastError = error_get_last();
@@ -353,28 +350,28 @@ class JetAnotherGeminiServer
 				} else {
 					// garbage collector 1
 					$data = fread($modifiedRead, 1024);
-	                if (strlen($data) === 0 || $data === false) {
-	                    // connection closed
-	                    $idx = array_search($modifiedRead, $connections, TRUE);
-	                    fclose($modifiedRead);
-	                    if ($idx != -1) {
-	                        unset($connections[$idx]);
-	                        $connections = array_merge($connections);
-	                    }
-	                }
-                }
+					if (strlen($data) === 0 || $data === false) {
+						// connection closed
+						$idx = array_search($modifiedRead, $connections, TRUE);
+						fclose($modifiedRead);
+						if ($idx != -1) {
+							unset($connections[$idx]);
+							$connections = array_merge($connections);
+						}
+					}
+				}
 			}
 
 			// garbage collector 2
 			foreach ($connections AS $_index => $connectionToCheck) {
 				if (get_resource_type($connectionToCheck) !== "stream") {
 					unset($connections[$_index]);
-	                $connections = array_merge($connections);
+					$connections = array_merge($connections);
 				}
 			}
 		}
 	}
-	
+
 	/**
 	 * deletes log files that are older than in $this->config['log_delete_after'] defined
 	 */
@@ -382,7 +379,7 @@ class JetAnotherGeminiServer
 	{
 		$toDeleteAfterTs = strtotime("-" . $this->config['log_delete_after']);
 		$log_list = scandir($this->config['work_dir'] . "/" . $this->config['log_dir']);
-		
+
 		foreach($log_list AS $log_filename) {
 			if (substr($log_filename, -4, 4) === ".log") {
 				if (filectime($this->config['work_dir'] . "/" . $this->config['log_dir'] . "/" . $log_filename) < $toDeleteAfterTs) {
@@ -390,7 +387,6 @@ class JetAnotherGeminiServer
 				}
 			}	
 		}
-		
 	}
 }
 
