@@ -13,7 +13,7 @@ class JetAnotherGeminiServer
 	private $config = [];
 
 	// version info
-	private $version = "202202_2";
+	private $version = "202202_3";
 
 	public function __construct(array $config)
 	{
@@ -25,7 +25,7 @@ class JetAnotherGeminiServer
 				'work_dir'							=> realpath(dirname(__FILE__) . "/.."),
 				'hosts'									=> ['localhost' => ["root" => "default"]],
 				'log_dir'								=> "logs",
-				'default_index_file'		=> "index.gemini",
+				'default_index_file'		=> ["index.gemini"],
 				'certs'									=> [],
 				'ssl_verify_peer'				=> false,
 				'ssl_capture_peer_cert'	=> false,
@@ -46,6 +46,11 @@ class JetAnotherGeminiServer
 			} else {
 				$this->config['certs'][$_hostConfig['cert_domain']] = $this->config['work_dir'] . "/" . $_hostConfig['cert'];
 			}
+		}
+
+		// if just one index file type is set, we need to make it a array anyway:
+		if (!is_array($this->config['default_index_file'])) {
+			$this->config['default_index_file'] = [$this->config['default_index_file']];
 		}
 
 		// enable access logging (if configured)
@@ -126,7 +131,7 @@ class JetAnotherGeminiServer
 
 		// force an index file to be appended if a filename is missing
 		if (empty($JAGSRequest['path']) || $JAGSRequest['path'] === "/") {
-			$JAGSRequest['path'] = "/" . $this->config['default_index_file'];
+			$JAGSRequest['path'] = "/";
 		}
 
 		/*
@@ -184,16 +189,17 @@ class JetAnotherGeminiServer
 		// add file_path to load the content to serve
 		$JAGSRequest['file_path'] = realpath($this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . $JAGSRequest['path']);
 
+		// checks if there is an index file on the current dir
+		foreach ($this->config['default_index_file'] AS $_defaultIndexFile) {
+			if (is_dir($JAGSRequest['file_path']) && is_file($JAGSRequest['file_path'] . "/" . $_defaultIndexFile)) {
+				$JAGSRequest['file_path'] = $JAGSRequest['file_path'] . "/" . $_defaultIndexFile;
+				break;
+			}
+		}
+
 		// checks if the current requested file lays in the $_serveRoot
 		if (substr($JAGSRequest['file_path'],0,strlen($_serveRoot)) !== $_serveRoot) {
 			$JAGSRequest['file_path'] = "";
-
-			return $JAGSRequest;
-		}
-
-		// checks if there is an index file on the current dir
-		if (is_dir($JAGSRequest['file_path']) && is_file($JAGSRequest['file_path'] . "/" . $this->config['default_index_file'])) {
-			$JAGSRequest['file_path'] = $JAGSRequest['file_path'] . "/" . $this->config['default_index_file'];
 		}
 
 		return $JAGSRequest;

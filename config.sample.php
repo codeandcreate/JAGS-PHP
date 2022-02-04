@@ -34,9 +34,10 @@ $config = [
 // Port to listen on (1965 is the default)
 //	'port' => "1965",
 
-// Default index file.  If a path isn't specified then the server will
+// Default index file(s).  If a file isn't specified then the server will
 // default to an index file (like index.html on a web server).
-//	'default_index_file' => "index.gemini",
+// Since it is an array, you can also add for example "index.php" to it.
+//	'default_index_file' => ["index.gemini"],
 
 // Logging, setting this to false will disable logging (default is on/true);
 //	'logging' => true, 
@@ -54,5 +55,4 @@ $config = [
 //	'log_dir' => "logs",
 
 ];
-
 ?>
