@@ -19,6 +19,7 @@ class JetAnotherGeminiServer
 	{
 		// set default config and overwrite with custom settings:
 		$this->config = array_merge(
+			[
 				'ip'										=> "0",
 				'port' 									=> "1965",
 				'work_dir'							=> realpath(dirname(__FILE__) . "/.."),
@@ -179,13 +180,20 @@ class JetAnotherGeminiServer
 				$JAGSRequest['auth'] = @openssl_x509_parse($stream_context_get_params['options']['ssl']['peer_certificate']);
 			}
 		}
-		
+
 		// add file_path to load the content to serve
 		$JAGSRequest['file_path'] = realpath($this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . $JAGSRequest['path']);
 
 		// checks if the current requested file lays in the $_serveRoot
 		if (substr($JAGSRequest['file_path'],0,strlen($_serveRoot)) !== $_serveRoot) {
 			$JAGSRequest['file_path'] = "";
+
+			return $JAGSRequest;
+		}
+
+		// checks if there is an index file on the current dir
+		if (is_dir($JAGSRequest['file_path']) && is_file($JAGSRequest['file_path'] . "/" . $this->config['default_index_file'])) {
+			$JAGSRequest['file_path'] = $JAGSRequest['file_path'] . "/" . $this->config['default_index_file'];
 		}
 
 		return $JAGSRequest;

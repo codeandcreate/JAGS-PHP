@@ -1,28 +1,33 @@
 <?php
-	
-$config = [
 /*
- * Set the location of your certificate file.  All other settings are optional.
+ * Set the hosts configuration with of your certificate file(s).
+ * All other settings are optional.
  *
+ * You can generate a certificate using:
  *
- * This is your certificate file.  A self-signed certificate is acceptable here.
- * You can generate one using:
- *
- *   openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
+ *  openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
  *
  * Then combine the key and certificate and copy them to the certs directory:
  *
- *  cp cert.pem certs/yourdomain.com.pem
- *  cat key.pem >> certs/yourdomain.com.pem
+ *  cp cert.pem yourdomain.com.pem
+ *  cat key.pem >> yourdomain.com.pem
  *
- * Do not enter a passphrase!
- *
+ * Do not use a passphrase!
  */
 
+$config = [
+//	'hosts' => [
+//		'localhost' => [																// domain name
+//			'root'				=> "default",										// folder below 'work_dir'
+//			'cert'				=> "certs/yourdomain.com.pem",	// your cert file
+//			'cert_domain'	=> "localhost"									// domain name registered in the cert
+//		],
+//	]
+
 // Additional ssl options - shouldn't be used for a public host atm.
-//	'ssl_verify_peer'			=> false,
-//	'ssl_capture_peer_cert'		=> false,
-	
+//	'ssl_verify_peer'				=> false,
+//	'ssl_capture_peer_cert'	=> false,
+
 // IP address to listen to (leave commented out to listen on all interfaces)
 //	'ip' => "127.0.0.1",
 
@@ -43,16 +48,7 @@ $config = [
 //	'log_delete_after' => "30days",
 
 // 'work_dir' is the folder that contains config.php, server.php, logs/, libs/, ...
-// 'work_dir' => "/var/gemini/",
-
-// configure your hosts:
-// 'hosts' => [
-//    'localhost' => [                            // domain name
-//        'root' => "default",                    // folder below 'work_dir'
-//        'cert' => "certs/yourdomain.com.pem",   // your cert file
-//        'cert_domain' => "localhost"            // domain name registered in the cert
-//    ],
-// ]
+//	'work_dir' => "/var/gemini/",
 
 // The log folder is always relative to 'work_dir'
 //	'log_dir' => "logs",
