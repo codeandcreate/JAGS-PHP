@@ -140,7 +140,7 @@ class JetAnotherGeminiServer
 		 * ]
 		 */
 		$explodedPath = explode("/", $JAGSRequest['path']);
-		if (is_file(realpath($this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . "/" . $explodedPath[1] . ".php"))) {
+		if (realpath($this->config['work_dir'] . "/hosts/" . $this->config['hosts'][$JAGSRequest['host']]['root'] . "/" . $explodedPath[1] . ".php")) {
 			$JAGSRequest['path'] = "/" . $explodedPath[1] . ".php";
 			$pathParams = [];
 			foreach($explodedPath AS $_index => $param) {
